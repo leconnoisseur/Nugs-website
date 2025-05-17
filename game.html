@@ -27,7 +27,6 @@
       font-size: 16px;
       padding: 6px 12px;
     }
-
     #mute-toggle { right: 10px; }
     #pause-toggle { left: 10px; }
 
@@ -43,6 +42,8 @@
   <canvas id="gameCanvas"></canvas>
 
   <script>
+    const OBJECT_SIZE = 60;
+
     const canvas = document.getElementById("gameCanvas");
     const ctx = canvas.getContext("2d");
 
@@ -87,6 +88,9 @@
     let gameRunning = true;
     let audioEnabled = false;
 
+    let powerUpActive = false; // 🔥 POWER-UP FLAG
+    let powerUpEndTime = 0;
+
     document.getElementById("mute-toggle").addEventListener("click", () => {
       isMuted = !isMuted;
       [positiveSound, negativeSound, panSound, themeSong].forEach(audio => {
@@ -118,10 +122,11 @@
       const img = isNugget
         ? nugImgs[Math.floor(Math.random() * nugImgs.length)]
         : drugImgs[Math.floor(Math.random() * drugImgs.length)];
-      const speed = Math.random() * 2 + 2 * speedMultiplier;
+      const baseSpeed = Math.random() * 2 + 2 * speedMultiplier;
+      const speed = powerUpActive ? baseSpeed * 0.5 : baseSpeed; // 🔥 POWER-UP: slow speed
       objects.push({
-        x: Math.random() * (canvas.width - 50),
-        y: -50,
+        x: Math.random() * (canvas.width - OBJECT_SIZE),
+        y: -OBJECT_SIZE,
         img,
         isNugget,
         speed
@@ -137,7 +142,7 @@
     function drawObjects() {
       objects.forEach(obj => {
         if (obj.img.complete && obj.img.naturalWidth > 0) {
-          ctx.drawImage(obj.img, obj.x, obj.y, 50, 50);
+          ctx.drawImage(obj.img, obj.x, obj.y, OBJECT_SIZE, OBJECT_SIZE);
         }
       });
     }
@@ -150,14 +155,23 @@
       objects = objects.filter(obj => {
         if (obj.y > canvas.height) return false;
 
-        if (
-          obj.y + 50 >= pan.y &&
-          obj.x + 50 >= pan.x &&
-          obj.x <= pan.x + pan.width
-        ) {
+        const hit =
+          obj.y + OBJECT_SIZE >= pan.y &&
+          obj.x + OBJECT_SIZE >= pan.x &&
+          obj.x <= pan.x + pan.width;
+
+        if (hit) {
           if (obj.isNugget) {
             score++;
             if (audioEnabled && !isMuted) positiveSound.play().catch(() => {});
+
+            // 🔥 POWER-UP: activate at score 5
+            if (score === 5 && !powerUpActive) {
+              powerUpActive = true;
+              pan.width *= 1.5; // widen pan
+              powerUpEndTime = Date.now() + 15000; // 15 seconds
+            }
+
           } else {
             misses++;
             if (audioEnabled && !isMuted) negativeSound.play().catch(() => {});
@@ -171,6 +185,7 @@
           }
           return false;
         }
+
         return true;
       });
     }
@@ -191,6 +206,13 @@
 
     function gameLoop() {
       if (!gameRunning || isPaused) return;
+
+      // 🔥 POWER-UP: check expiry
+      if (powerUpActive && Date.now() > powerUpEndTime) {
+        powerUpActive = false;
+        pan.width /= 1.5;
+      }
+
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       updatePanPosition();
       drawPan();
