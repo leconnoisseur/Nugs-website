@@ -205,9 +205,17 @@
       requestAnimationFrame(gameLoop);
     }
 
-    // Start game immediately
-    panSound.play().catch(() => {});
-    themeSong.play().catch(() => {});
+    // 🎵 Audio will start on mobile only after user touches
+    function enableAudioOnFirstTouch() {
+      panSound.play().catch(() => {});
+      themeSong.play().catch(() => {});
+      window.removeEventListener("touchstart", enableAudioOnFirstTouch);
+      window.removeEventListener("mousedown", enableAudioOnFirstTouch);
+    }
+
+    window.addEventListener("touchstart", enableAudioOnFirstTouch, { once: true });
+    window.addEventListener("mousedown", enableAudioOnFirstTouch, { once: true });
+
     gameLoop();
   </script>
 </body>
