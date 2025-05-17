@@ -17,14 +17,8 @@
       font-weight: bold;
       z-index: 2;
     }
-    #scoreboard {
-      top: 10px;
-      left: 10px;
-    }
-    #highscore {
-      top: 10px;
-      right: 10px;
-    }
+    #scoreboard { top: 10px; left: 10px; }
+    #highscore { top: 10px; right: 10px; }
     #mute-toggle {
       position: absolute;
       top: 10px;
@@ -47,9 +41,7 @@
       border: none;
       cursor: pointer;
     }
-    canvas {
-      display: block;
-    }
+    canvas { display: block; }
   </style>
 </head>
 <body>
@@ -152,9 +144,7 @@
     }
 
     function updateObjects() {
-      objects.forEach(obj => {
-        obj.y += obj.speed;
-      });
+      objects.forEach(obj => { obj.y += obj.speed; });
 
       objects = objects.filter(obj => {
         if (obj.y > canvas.height) return false;
@@ -166,10 +156,73 @@
         ) {
           if (obj.isNugget) {
             score++;
-            positiveSound.play();
+            positiveSound.play().catch(() => {});
           } else {
             misses++;
-            negativeSound.play();
+            negativeSound.play().catch(() => {});
             if (misses >= 3) {
               alert("Game Over! Score: " + score);
               if (score > highscore) {
+                localStorage.setItem("nugHighscore", score);
+              }
+              window.location.reload();
+            }
+          }
+          return false;
+        }
+        return true;
+      });
+    }
+
+    let mouseX = canvas.width / 2;
+    document.addEventListener("mousemove", e => {
+      mouseX = e.clientX;
+    });
+
+    document.addEventListener("touchmove", e => {
+      if (e.touches.length > 0) {
+        mouseX = e.touches[0].clientX;
+      }
+    }, { passive: true });
+
+    function updatePanPosition() {
+      pan.x += (mouseX - pan.x - pan.width / 2) * 0.2;
+    }
+
+    function gameLoop() {
+      if (!gameRunning) return;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      updatePanPosition();
+      drawPan();
+      drawObjects();
+      updateObjects();
+      document.getElementById("scoreboard").innerText = "Score: " + score;
+
+      if (frame % Math.max(20 - speedMultiplier * 2, 5) === 0) spawnObject();
+      if (frame % 600 === 0) speedMultiplier += 0.5;
+
+      frame++;
+      requestAnimationFrame(gameLoop);
+    }
+
+    function startGame() {
+      const btn = document.getElementById("start-button");
+      if (btn) btn.style.display = "none";
+      gameRunning = true;
+      gameLoop();
+
+      setTimeout(() => {
+        panSound.play().catch(() => {});
+        themeSong.play().catch(() => {});
+      }, 100);
+    }
+
+    const startBtn = document.getElementById("start-button");
+    if (startBtn) {
+      startBtn.onclick = () => startGame();
+    } else {
+      console.error("Start button not found");
+    }
+  </script>
+</body>
+</html>
