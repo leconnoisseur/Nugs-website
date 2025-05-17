@@ -11,19 +11,41 @@
       background-color: yellow;
       font-family: Arial, sans-serif;
     }
-    #scoreboard {
+    #scoreboard, #highscore {
       position: absolute;
+      font-size: 20px;
+      font-weight: bold;
+      z-index: 2;
+    }
+    #scoreboard {
       top: 10px;
       left: 10px;
-      font-size: 20px;
-      font-weight: bold;
     }
     #highscore {
-      position: absolute;
       top: 10px;
       right: 10px;
-      font-size: 20px;
-      font-weight: bold;
+    }
+    #mute-toggle {
+      position: absolute;
+      top: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 2;
+      font-size: 16px;
+      padding: 6px 12px;
+    }
+    #start-button {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 3;
+      font-size: 24px;
+      padding: 10px 20px;
+      background-color: black;
+      color: white;
+      border: none;
+      cursor: pointer;
     }
     canvas {
       display: block;
@@ -31,8 +53,11 @@
   </style>
 </head>
 <body>
+
   <div id="scoreboard">Score: 0</div>
   <div id="highscore">Highscore: 0</div>
+  <button id="mute-toggle">🔇 Mute</button>
+  <button id="start-button">Start Game</button>
   <canvas id="gameCanvas"></canvas>
 
   <script>
@@ -49,14 +74,9 @@
     panImg.src = "frying_pan.png";
 
     const nugImgs = [
-      "nugs_og.png",
-      "nugs_fed.png",
-      "nugs_guitar.png",
-      "nugs_lee.png",
-      "nugs_sal.png",
-      "nugs_shark.png",
-      "nugs_sheikh.png",
-      "nugs_thugga.png"
+      "nugs_og.png", "nugs_fed.png", "nugs_guitar.png",
+      "nugs_lee.png", "nugs_sal.png", "nugs_shark.png",
+      "nugs_sheikh.png", "nugs_thugga.png"
     ].map(src => {
       const img = new Image();
       img.src = src;
@@ -75,6 +95,15 @@
     const themeSong = new Audio("Kahoot_Sound_Effect.wav");
     themeSong.loop = true;
 
+    let isMuted = false;
+    document.getElementById("mute-toggle").addEventListener("click", () => {
+      isMuted = !isMuted;
+      [positiveSound, negativeSound, panSound, themeSong].forEach(audio => {
+        audio.muted = isMuted;
+      });
+      document.getElementById("mute-toggle").innerText = isMuted ? "🔊 Unmute" : "🔇 Mute";
+    });
+
     let pan = {
       x: canvas.width / 2 - 50,
       y: canvas.height - 100,
@@ -86,10 +115,13 @@
     let frame = 0;
     let misses = 0;
     let speedMultiplier = 1;
+    let gameRunning = false;
 
     function spawnObject() {
       const isNugget = Math.random() < 0.7;
-      const img = isNugget ? nugImgs[Math.floor(Math.random() * nugImgs.length)] : drugImgs[Math.floor(Math.random() * drugImgs.length)];
+      const img = isNugget
+        ? nugImgs[Math.floor(Math.random() * nugImgs.length)]
+        : drugImgs[Math.floor(Math.random() * drugImgs.length)];
       const speed = Math.random() * 2 + 2 * speedMultiplier;
       objects.push({
         x: Math.random() * (canvas.width - 50),
@@ -147,19 +179,17 @@
       });
     }
 
-let mouseX = canvas.width / 2;
+    let mouseX = canvas.width / 2;
+    document.addEventListener("mousemove", e => {
+      mouseX = e.clientX;
+    });
 
-document.addEventListener("mousemove", e => {
-  mouseX = e.clientX;
-});
-
-function updatePanPosition() {
-  // Smooth follow effect
-  pan.x += (mouseX - pan.x - pan.width / 2) * 0.2;
-}
-
+    function updatePanPosition() {
+      pan.x += (mouseX - pan.x - pan.width / 2) * 0.2;
+    }
 
     function gameLoop() {
+      if (!gameRunning) return;
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       updatePanPosition();
       drawPan();
@@ -175,14 +205,14 @@ function updatePanPosition() {
     }
 
     function startGame() {
+      document.getElementById("start-button").style.display = "none";
       panSound.play();
       themeSong.play();
+      gameRunning = true;
       gameLoop();
     }
 
-    document.addEventListener("click", startGame, { once: true });
-    document.addEventListener("mousemove", startGame, { once: true });
-
+    document.getElementById("start-button").addEventListener("click", startGame);
   </script>
 </body>
 </html>
