@@ -30,6 +30,31 @@
     #mute-toggle { right: 10px; }
     #pause-toggle { left: 10px; }
 
+    #sound-tip {
+      position: absolute;
+      top: 12px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 18px;
+      font-weight: bold;
+      z-index: 4;
+      background: rgba(255,255,255,0.8);
+      padding: 4px 10px;
+      border-radius: 8px;
+    }
+
+    #flash {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: white;
+      opacity: 0;
+      pointer-events: none;
+      z-index: 5;
+      transition: opacity 0.5s ease-out;
+    }
+
     canvas { display: block; }
   </style>
 </head>
@@ -37,13 +62,14 @@
 
   <div id="scoreboard">Score: 0</div>
   <div id="highscore">Highscore: 0</div>
+  <div id="sound-tip">&lt;Click for Sound&gt;</div>
+  <div id="flash"></div>
   <button id="pause-toggle">⏸ Pause</button>
   <button id="mute-toggle">🔇 Mute</button>
   <canvas id="gameCanvas"></canvas>
 
   <script>
     const OBJECT_SIZE = 60;
-
     const canvas = document.getElementById("gameCanvas");
     const ctx = canvas.getContext("2d");
 
@@ -87,9 +113,19 @@
     let isPaused = false;
     let gameRunning = true;
     let audioEnabled = false;
-
-    let powerUpActive = false; // 🔥 POWER-UP FLAG
+    let powerUpActive = false;
     let powerUpEndTime = 0;
+    let lastPowerUpScore = 0;
+
+    const flash = document.getElementById("flash");
+    const soundTip = document.getElementById("sound-tip");
+
+    function triggerFlash() {
+      flash.style.opacity = 1;
+      setTimeout(() => {
+        flash.style.opacity = 0;
+      }, 200);
+    }
 
     document.getElementById("mute-toggle").addEventListener("click", () => {
       isMuted = !isMuted;
@@ -123,7 +159,7 @@
         ? nugImgs[Math.floor(Math.random() * nugImgs.length)]
         : drugImgs[Math.floor(Math.random() * drugImgs.length)];
       const baseSpeed = Math.random() * 2 + 2 * speedMultiplier;
-      const speed = powerUpActive ? baseSpeed * 0.5 : baseSpeed; // 🔥 POWER-UP: slow speed
+      const speed = powerUpActive ? baseSpeed * 0.5 : baseSpeed;
       objects.push({
         x: Math.random() * (canvas.width - OBJECT_SIZE),
         y: -OBJECT_SIZE,
@@ -165,11 +201,16 @@
             score++;
             if (audioEnabled && !isMuted) positiveSound.play().catch(() => {});
 
-            // 🔥 POWER-UP: activate at score 5
-            if (score === 5 && !powerUpActive) {
+            if (
+              score % 25 === 0 &&
+              score <= 1000 &&
+              score !== lastPowerUpScore
+            ) {
               powerUpActive = true;
-              pan.width *= 1.5; // widen pan
-              powerUpEndTime = Date.now() + 15000; // 15 seconds
+              pan.width *= 1.5;
+              powerUpEndTime = Date.now() + 15000;
+              lastPowerUpScore = score;
+              triggerFlash(); // 💥 Flash
             }
 
           } else {
@@ -207,7 +248,6 @@
     function gameLoop() {
       if (!gameRunning || isPaused) return;
 
-      // 🔥 POWER-UP: check expiry
       if (powerUpActive && Date.now() > powerUpEndTime) {
         powerUpActive = false;
         pan.width /= 1.5;
@@ -231,6 +271,7 @@
       audioEnabled = true;
       panSound.play().catch(() => {});
       themeSong.play().catch(() => {});
+      soundTip.style.display = "none";
       window.removeEventListener("touchstart", enableAudio);
       window.removeEventListener("mousedown", enableAudio);
     }
