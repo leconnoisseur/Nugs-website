@@ -63,8 +63,13 @@
   <script>
     const canvas = document.getElementById("gameCanvas");
     const ctx = canvas.getContext("2d");
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
+
+    function resizeCanvas() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    }
+    window.addEventListener("resize", resizeCanvas);
+    resizeCanvas();
 
     let score = 0;
     let highscore = localStorage.getItem("nugHighscore") || 0;
@@ -168,51 +173,3 @@
             if (misses >= 3) {
               alert("Game Over! Score: " + score);
               if (score > highscore) {
-                localStorage.setItem("nugHighscore", score);
-              }
-              window.location.reload();
-            }
-          }
-          return false;
-        }
-        return true;
-      });
-    }
-
-    let mouseX = canvas.width / 2;
-    document.addEventListener("mousemove", e => {
-      mouseX = e.clientX;
-    });
-
-    function updatePanPosition() {
-      pan.x += (mouseX - pan.x - pan.width / 2) * 0.2;
-    }
-
-    function gameLoop() {
-      if (!gameRunning) return;
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      updatePanPosition();
-      drawPan();
-      drawObjects();
-      updateObjects();
-      document.getElementById("scoreboard").innerText = "Score: " + score;
-
-      if (frame % Math.max(20 - speedMultiplier * 2, 5) === 0) spawnObject();
-      if (frame % 600 === 0) speedMultiplier += 0.5;
-
-      frame++;
-      requestAnimationFrame(gameLoop);
-    }
-
-    function startGame() {
-      document.getElementById("start-button").style.display = "none";
-      panSound.play();
-      themeSong.play();
-      gameRunning = true;
-      gameLoop();
-    }
-
-    document.getElementById("start-button").addEventListener("click", startGame);
-  </script>
-</body>
-</html>
