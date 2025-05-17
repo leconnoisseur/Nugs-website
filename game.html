@@ -19,27 +19,20 @@
     }
     #scoreboard { top: 10px; left: 10px; }
     #highscore { top: 10px; right: 10px; }
-    #mute-toggle {
+    #mute-toggle, #pause-toggle {
       position: absolute;
       top: 10px;
-      left: 50%;
-      transform: translateX(-50%);
-      z-index: 2;
+      z-index: 3;
       font-size: 16px;
       padding: 6px 12px;
     }
-    #start-button {
-      position: absolute;
-      top: 50%;
+    #mute-toggle {
       left: 50%;
-      transform: translate(-50%, -50%);
-      z-index: 3;
-      font-size: 24px;
-      padding: 10px 20px;
-      background-color: black;
-      color: white;
-      border: none;
-      cursor: pointer;
+      transform: translateX(-50%);
+    }
+    #pause-toggle {
+      left: 10%;
+      transform: translateX(-50%);
     }
     canvas { display: block; }
   </style>
@@ -49,7 +42,7 @@
   <div id="scoreboard">Score: 0</div>
   <div id="highscore">Highscore: 0</div>
   <button id="mute-toggle">🔇 Mute</button>
-  <button id="start-button">Start Game</button>
+  <button id="pause-toggle">⏸ Pause</button>
   <canvas id="gameCanvas"></canvas>
 
   <script>
@@ -101,6 +94,13 @@
       document.getElementById("mute-toggle").innerText = isMuted ? "🔊 Unmute" : "🔇 Mute";
     });
 
+    let isPaused = false;
+    document.getElementById("pause-toggle").addEventListener("click", () => {
+      isPaused = !isPaused;
+      document.getElementById("pause-toggle").innerText = isPaused ? "▶ Resume" : "⏸ Pause";
+      if (!isPaused) requestAnimationFrame(gameLoop);
+    });
+
     let pan = {
       x: canvas.width / 2 - 50,
       y: canvas.height - 100,
@@ -112,7 +112,7 @@
     let frame = 0;
     let misses = 0;
     let speedMultiplier = 1;
-    let gameRunning = false;
+    let gameRunning = true;
 
     function spawnObject() {
       const isNugget = Math.random() < 0.7;
@@ -178,7 +178,6 @@
     document.addEventListener("mousemove", e => {
       mouseX = e.clientX;
     });
-
     document.addEventListener("touchmove", e => {
       if (e.touches.length > 0) {
         mouseX = e.touches[0].clientX;
@@ -190,7 +189,8 @@
     }
 
     function gameLoop() {
-      if (!gameRunning) return;
+      if (!gameRunning || isPaused) return;
+
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       updatePanPosition();
       drawPan();
@@ -205,24 +205,10 @@
       requestAnimationFrame(gameLoop);
     }
 
-    function startGame() {
-      const btn = document.getElementById("start-button");
-      if (btn) btn.style.display = "none";
-      gameRunning = true;
-      gameLoop();
-
-      setTimeout(() => {
-        panSound.play().catch(() => {});
-        themeSong.play().catch(() => {});
-      }, 100);
-    }
-
-    const startBtn = document.getElementById("start-button");
-    if (startBtn) {
-      startBtn.onclick = () => startGame();
-    } else {
-      console.error("Start button not found");
-    }
+    // Start game immediately
+    panSound.play().catch(() => {});
+    themeSong.play().catch(() => {});
+    gameLoop();
   </script>
 </body>
 </html>
