@@ -19,30 +19,35 @@
     }
     #scoreboard { top: 10px; left: 10px; }
     #highscore { top: 10px; right: 10px; }
+
     #mute-toggle, #pause-toggle {
       position: absolute;
-      top: 10px;
+      top: 50px;
       z-index: 3;
       font-size: 16px;
       padding: 6px 12px;
     }
+
     #mute-toggle {
       left: 50%;
       transform: translateX(-50%);
     }
+
     #pause-toggle {
-      left: 10%;
-      transform: translateX(-50%);
+      left: 10px;
     }
-    canvas { display: block; }
+
+    canvas {
+      display: block;
+    }
   </style>
 </head>
 <body>
 
   <div id="scoreboard">Score: 0</div>
   <div id="highscore">Highscore: 0</div>
-  <button id="mute-toggle">🔇 Mute</button>
   <button id="pause-toggle">⏸ Pause</button>
+  <button id="mute-toggle">🔇 Mute</button>
   <canvas id="gameCanvas"></canvas>
 
   <script>
@@ -86,6 +91,10 @@
     themeSong.loop = true;
 
     let isMuted = false;
+    let isPaused = false;
+    let gameRunning = true;
+    let audioEnabled = false;
+
     document.getElementById("mute-toggle").addEventListener("click", () => {
       isMuted = !isMuted;
       [positiveSound, negativeSound, panSound, themeSong].forEach(audio => {
@@ -94,7 +103,6 @@
       document.getElementById("mute-toggle").innerText = isMuted ? "🔊 Unmute" : "🔇 Mute";
     });
 
-    let isPaused = false;
     document.getElementById("pause-toggle").addEventListener("click", () => {
       isPaused = !isPaused;
       document.getElementById("pause-toggle").innerText = isPaused ? "▶ Resume" : "⏸ Pause";
@@ -112,7 +120,6 @@
     let frame = 0;
     let misses = 0;
     let speedMultiplier = 1;
-    let gameRunning = true;
 
     function spawnObject() {
       const isNugget = Math.random() < 0.7;
@@ -144,7 +151,9 @@
     }
 
     function updateObjects() {
-      objects.forEach(obj => { obj.y += obj.speed; });
+      objects.forEach(obj => {
+        obj.y += obj.speed;
+      });
 
       objects = objects.filter(obj => {
         if (obj.y > canvas.height) return false;
@@ -156,10 +165,10 @@
         ) {
           if (obj.isNugget) {
             score++;
-            positiveSound.play().catch(() => {});
+            if (audioEnabled && !isMuted) positiveSound.play().catch(() => {});
           } else {
             misses++;
-            negativeSound.play().catch(() => {});
+            if (audioEnabled && !isMuted) negativeSound.play().catch(() => {});
             if (misses >= 3) {
               alert("Game Over! Score: " + score);
               if (score > highscore) {
@@ -190,7 +199,6 @@
 
     function gameLoop() {
       if (!gameRunning || isPaused) return;
-
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       updatePanPosition();
       drawPan();
@@ -205,16 +213,17 @@
       requestAnimationFrame(gameLoop);
     }
 
-    // 🎵 Audio will start on mobile only after user touches
-    function enableAudioOnFirstTouch() {
+    // 🎵 Enable audio only after first user interaction
+    function enableAudio() {
+      audioEnabled = true;
       panSound.play().catch(() => {});
       themeSong.play().catch(() => {});
-      window.removeEventListener("touchstart", enableAudioOnFirstTouch);
-      window.removeEventListener("mousedown", enableAudioOnFirstTouch);
+      window.removeEventListener("touchstart", enableAudio);
+      window.removeEventListener("mousedown", enableAudio);
     }
 
-    window.addEventListener("touchstart", enableAudioOnFirstTouch, { once: true });
-    window.addEventListener("mousedown", enableAudioOnFirstTouch, { once: true });
+    window.addEventListener("touchstart", enableAudio, { once: true });
+    window.addEventListener("mousedown", enableAudio, { once: true });
 
     gameLoop();
   </script>
