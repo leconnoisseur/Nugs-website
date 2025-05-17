@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Nug Catcher</title>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      background-color: yellow;
+      font-family: Arial, sans-serif;
+    }
+    #scoreboard {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      font-size: 20px;
+      font-weight: bold;
+    }
+    #highscore {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      font-size: 20px;
+      font-weight: bold;
+    }
+    canvas {
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <div id="scoreboard">Score: 0</div>
+  <div id="highscore">Highscore: 0</div>
+  <canvas id="gameCanvas"></canvas>
+
+  <script>
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    let score = 0;
+    let highscore = localStorage.getItem("nugHighscore") || 0;
+    document.getElementById("highscore").innerText = "Highscore: " + highscore;
+
+    const panImg = new Image();
+    panImg.src = "frying_pan.png";
+
+    const nugImgs = [
+      "nugs_og.png",
+      "nugs_fed.png",
+      "nugs_guitar.png",
+      "nugs_lee.png",
+      "nugs_sal.png",
+      "nugs_shark.png",
+      "nugs_sheikh.png",
+      "nugs_thugga.png"
+    ].map(src => {
+      const img = new Image();
+      img.src = src;
+      return img;
+    });
+
+    const drugImgs = ["drug_1.png", "drug_2.png", "drug_3.png"].map(src => {
+      const img = new Image();
+      img.src = src;
+      return img;
+    });
+
+    const positiveSound = new Audio("positive.wav");
+    const negativeSound = new Audio("negative.wav");
+    const panSound = new Audio("frying_pan_sound.wav");
+    const themeSong = new Audio("Kahoot_Sound_Effect.wav");
+    themeSong.loop = true;
+
+    let pan = {
+      x: canvas.width / 2 - 50,
+      y: canvas.height - 100,
+      width: 100,
+      height: 50
+    };
+
+    let objects = [];
+    let frame = 0;
+    let misses = 0;
+    let speedMultiplier = 1;
+
+    function spawnObject() {
+      const isNugget = Math.random() < 0.7;
+      const img = isNugget ? nugImgs[Math.floor(Math.random() * nugImgs.length)] : drugImgs[Math.floor(Math.random() * drugImgs.length)];
+      const speed = Math.random() * 2 + 2 * speedMultiplier;
+      objects.push({
+        x: Math.random() * (canvas.width - 50),
+        y: -50,
+        img,
+        isNugget,
+        speed
+      });
+    }
+
+    function drawPan() {
+      if (panImg.complete && panImg.naturalWidth > 0) {
+        ctx.drawImage(panImg, pan.x, pan.y, pan.width, pan.height);
+      }
+    }
+
+    function drawObjects() {
+      objects.forEach(obj => {
+        if (obj.img.complete && obj.img.naturalWidth > 0) {
+          ctx.drawImage(obj.img, obj.x, obj.y, 50, 50);
+        }
+      });
+    }
+
+    function updateObjects() {
+      objects.forEach(obj => {
+        obj.y += obj.speed;
+      });
+
+      objects = objects.filter(obj => {
+        if (obj.y > canvas.height) return false;
+
+        if (
+          obj.y + 50 >= pan.y &&
+          obj.x + 50 >= pan.x &&
+          obj.x <= pan.x + pan.width
+        ) {
+          if (obj.isNugget) {
+            score++;
+            positiveSound.play();
+          } else {
+            misses++;
+            negativeSound.play();
+            if (misses >= 3) {
+              alert("Game Over! Score: " + score);
+              if (score > highscore) {
+                localStorage.setItem("nugHighscore", score);
+              }
+              window.location.reload();
+            }
+          }
+          return false;
+        }
+        return true;
+      });
+    }
+
+let mouseX = canvas.width / 2;
+
+document.addEventListener("mousemove", e => {
+  mouseX = e.clientX;
+});
+
+function updatePanPosition() {
+  // Smooth follow effect
+  pan.x += (mouseX - pan.x - pan.width / 2) * 0.2;
+}
+
+
+    function gameLoop() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      updatePanPosition();
+      drawPan();
+      drawObjects();
+      updateObjects();
+      document.getElementById("scoreboard").innerText = "Score: " + score;
+
+      if (frame % Math.max(20 - speedMultiplier * 2, 5) === 0) spawnObject();
+      if (frame % 600 === 0) speedMultiplier += 0.5;
+
+      frame++;
+      requestAnimationFrame(gameLoop);
+    }
+
+    function startGame() {
+      panSound.play();
+      themeSong.play();
+      gameLoop();
+    }
+
+    document.addEventListener("click", startGame, { once: true });
+    document.addEventListener("mousemove", startGame, { once: true });
+
+  </script>
+</body>
+</html>

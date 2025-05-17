@@ -1,0 +1,274 @@
+{\rtf1\ansi\ansicpg1252\cocoartf2709
+\cocoatextscaling0\cocoaplatform0{\fonttbl\f0\fmodern\fcharset0 Courier;}
+{\colortbl;\red255\green255\blue255;\red0\green0\blue0;}
+{\*\expandedcolortbl;;\cssrgb\c0\c0\c0;}
+\paperw11900\paperh16840\margl1440\margr1440\vieww11520\viewh8400\viewkind0
+\deftab720
+\pard\pardeftab720\partightenfactor0
+
+\f0\fs26\fsmilli13333 \cf0 \expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec2 <!DOCTYPE html>\
+<html lang="en">\
+<head>\
+    <meta charset="UTF-8">\
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">\
+    <title>Nug Catcher</title>\
+    <style>\
+        body \{ margin: 0; display: flex; flex-direction: column; align-items: center; background: #f0f0f0; font-family: Arial, sans-serif; \}\
+        canvas \{ border: 2px solid #333; background: #fff; \}\
+        #startScreen, #gameOverScreen \{ text-align: center; margin-top: 20px; \}\
+        #startScreen button, #gameOverScreen button \{ padding: 10px 20px; font-size: 16px; cursor: pointer; \}\
+        #characterSelect \{ display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; \}\
+        #characterSelect img \{ width: 50px; height: 50px; cursor: pointer; border: 2px solid transparent; \}\
+        #characterSelect img.selected \{ border-color: blue; \}\
+    </style>\
+</head>\
+<body>\
+    <div id="startScreen">\
+        <h1>Nug Catcher</h1>\
+        <h3>Select Your Nugget Character</h3>\
+        <div id="characterSelect"></div>\
+        <button id="startButton" disabled>Start Game</button>\
+    </div>\
+    <canvas id="gameCanvas" width="800" height="600"></canvas>\
+    <div id="gameOverScreen" style="display: none;">\
+        <h1>Game Over</h1>\
+        <p>Score: <span id="finalScore"></span></p>\
+        <button id="restartButton">Restart</button>\
+    </div>\
+\
+    <script>\
+        const canvas = document.getElementById('gameCanvas');\
+        const ctx = canvas.getContext('2d');\
+        const startScreen = document.getElementById('startScreen');\
+        const gameOverScreen = document.getElementById('gameOverScreen');\
+        const startButton = document.getElementById('startButton');\
+        const restartButton = document.getElementById('restartButton');\
+        const characterSelect = document.getElementById('characterSelect');\
+        const finalScoreDisplay = document.getElementById('finalScore');\
+\
+        // Assets\
+        const panImg = new Image(); panImg.src = 'frying pan.png';\
+        const nuggetImages = [\
+            'nugs og.png', 'nugs fed.png', 'nugs guitar.png', 'nugs lee.png',\
+            'nugs sal.png', 'nugs shark.png', 'nugs sheikh.png', 'nugs thugga.png'\
+        ].map(src => \{ const img = new Image(); img.src = src; return img; \});\
+        const drugImages = ['Drug 1.png', 'Drug 2.png', 'Drug 3.png'].map(src => \{ const img = new Image(); img.src = src; return img; \});\
+        const positiveSound = new Audio('positive.wav');\
+        const negativeSound = new Audio('negative.wav');\
+        const panSound = new Audio('Frying pan sound.wav');\
+        const themeSong = new Audio('Kahoot sound effect.wav'); themeSong.loop = true;\
+\
+        // Game state\
+        let gameState = 'start';\
+        let selectedCharacter = null;\
+        let pan = \{ x: canvas.width / 2 - 50, y: canvas.height - 60, width: 100, height: 50, speed: 5 \};\
+        let nuggets = [];\
+        let drugs = [];\
+        let powerUps = [];\
+        let score = 0;\
+        let highScore = localStorage.getItem('nugCatcherHighScore') || 0;\
+        let lives = 3;\
+        let difficulty = 1;\
+        let lastSpawn = 0;\
+        let powerUpActive = null;\
+        let powerUpEndTime = 0;\
+\
+        // Character selection\
+        nuggetImages.forEach((img, index) => \{\
+            const imgElement = document.createElement('img');\
+            imgElement.src = img.src;\
+            imgElement.addEventListener('click', () => \{\
+                document.querySelectorAll('#characterSelect img').forEach(img => img.classList.remove('selected'));\
+                imgElement.classList.add('selected');\
+                selectedCharacter = index;\
+                startButton.disabled = false;\
+            \});\
+            characterSelect.appendChild(imgElement);\
+        \});\
+\
+        // Input handling\
+        let keys = \{ ArrowLeft: false, ArrowRight: false \};\
+        document.addEventListener('keydown', e => \{ if (keys.hasOwnProperty(e.key)) keys[e.key] = true; \});\
+        document.addEventListener('keyup', e => \{ if (keys.hasOwnProperty(e.key)) keys[e.key] = false; \});\
+\
+        // Game logic\
+        function spawnItem() \{\
+            const now = Date.now();\
+            if (now - lastSpawn < 1000 / difficulty) return;\
+            lastSpawn = now;\
+\
+            const type = Math.random();\
+            let item;\
+            if (type < 0.7) \{ // Nugget\
+                item = \{\
+                    x: Math.random() * (canvas.width - 30),\
+                    y: -30,\
+                    width: 30,\
+                    height: 30,\
+                    speed: 2 + difficulty * 0.5,\
+                    type: 'nugget',\
+                    image: nuggetImages[selectedCharacter]\
+                \};\
+                nuggets.push(item);\
+            \} else if (type < 0.95) \{ // Drug\
+                item = \{\
+                    x: Math.random() * (canvas.width - 30),\
+                    y: -30,\
+                    width: 30,\
+                    height: 30,\
+                    speed: 2 + difficulty * 0.5,\
+                    type: 'drug',\
+                    image: drugImages[Math.floor(Math.random() * drugImages.length)]\
+                \};\
+                drugs.push(item);\
+            \} else \{ // Power-up\
+                const powerUpTypes = ['slow', 'wide', 'multiplier'];\
+                item = \{\
+                    x: Math.random() * (canvas.width - 30),\
+                    y: -30,\
+                    width: 30,\
+                    height: 30,\
+                    speed: 2 + difficulty * 0.5,\
+                    type: 'powerUp',\
+                    powerUpType: powerUpTypes[Math.floor(Math.random() * powerUpTypes.length)],\
+                    image: null // Placeholder, draw as colored square\
+                \};\
+                powerUps.push(item);\
+            \}\
+        \}\
+\
+        function update() \{\
+            if (gameState !== 'playing') return;\
+\
+            // Move pan\
+            if (keys.ArrowLeft && pan.x > 0) pan.x -= pan.speed;\
+            if (keys.ArrowRight && pan.x < canvas.width - pan.width) pan.x += pan.speed;\
+\
+            // Update items\
+            nuggets.forEach(n => n.y += n.speed);\
+            drugs.forEach(d => d.y += d.speed);\
+            powerUps.forEach(p => p.y += p.speed);\
+\
+            // Collision detection\
+            nuggets = nuggets.filter(n => \{\
+                if (n.y + n.height > pan.y && n.x > pan.x && n.x < pan.x + pan.width) \{\
+                    score += powerUpActive === 'multiplier' ? 20 : 10;\
+                    positiveSound.play();\
+                    return false;\
+                \}\
+                return n.y < canvas.height;\
+            \});\
+\
+            drugs = drugs.filter(d => \{\
+                if (d.y + d.height > pan.y && d.x > pan.x && d.x < pan.x + pan.width) \{\
+                    lives--;\
+                    negativeSound.play();\
+                    if (lives <= 0) endGame();\
+                    return false;\
+                \}\
+                return d.y < canvas.height;\
+            \});\
+\
+            powerUps = powerUps.filter(p => \{\
+                if (p.y + p.height > pan.y && p.x > pan.x && p.x < pan.x + pan.width) \{\
+                    activatePowerUp(p.powerUpType);\
+                    return false;\
+                \}\
+                return p.y < canvas.height;\
+            \});\
+\
+            // Power-up duration\
+            if (powerUpActive && Date.now() > powerUpEndTime) \{\
+                if (powerUpActive === 'wide') pan.width = 100;\
+                powerUpActive = null;\
+            \}\
+\
+            // Increase difficulty\
+            difficulty += 0.0005;\
+            spawnItem();\
+        \}\
+\
+        function activatePowerUp(type) \{\
+            powerUpActive = type;\
+            powerUpEndTime = Date.now() + 5000;\
+            if (type === 'wide') pan.width = 150;\
+            // 'slow' affects spawn rate, handled implicitly\
+            // 'multiplier' affects score, handled in collision\
+        \}\
+\
+        function draw() \{\
+            ctx.clearRect(0, 0, canvas.width, canvas.height);\
+\
+            // Draw pan\
+            ctx.drawImage(panImg, pan.x, pan.y, pan.width, pan.height);\
+\
+            // Draw items\
+            nuggets.forEach(n => ctx.drawImage(n.image, n.x, n.y, n.width, n.height));\
+            drugs.forEach(d => ctx.drawImage(d.image, d.x, d.y, d.width, d.height));\
+            powerUps.forEach(p => \{\
+                ctx.fillStyle = p.powerUpType === 'slow' ? 'green' : p.powerUpType === 'wide' ? 'blue' : 'purple';\
+                ctx.fillRect(p.x, p.y, p.width, p.height);\
+            \});\
+\
+            // Draw UI\
+            ctx.fillStyle = 'black';\
+            ctx.font = '20px Arial';\
+            ctx.fillText(`Score: $\{score\}`, 10, 30);\
+            ctx.fillText(`High Score: $\{highScore\}`, canvas.width - 150, 30);\
+            ctx.fillText(`Lives: $\{lives\}`, 10, 60);\
+            if (powerUpActive) ctx.fillText(`Power-Up: $\{powerUpActive\}`, 10, 90);\
+        \}\
+\
+        function gameLoop() \{\
+            update();\
+            draw();\
+            requestAnimationFrame(gameLoop);\
+        \}\
+\
+        function startGame() \{\
+            gameState = 'playing';\
+            startScreen.style.display = 'none';\
+            canvas.style.display = 'block';\
+            panSound.play();\
+            themeSong.play();\
+            gameLoop();\
+        \}\
+\
+        function endGame() \{\
+            gameState = 'gameOver';\
+            canvas.style.display = 'none';\
+            gameOverScreen.style.display = 'block';\
+            finalScoreDisplay.textContent = score;\
+            if (score > highScore) \{\
+                highScore = score;\
+                localStorage.setItem('nugCatcherHighScore', highScore);\
+            \}\
+            themeSong.pause();\
+        \}\
+\
+        function resetGame() \{\
+            score = 0;\
+            lives = 3;\
+            difficulty = 1;\
+            nuggets = [];\
+            drugs = [];\
+            powerUps = [];\
+            pan.x = canvas.width / 2 - 50;\
+            pan.width = 100;\
+            powerUpActive = null;\
+            gameOverScreen.style.display = 'none';\
+            startScreen.style.display = 'block';\
+            canvas.style.display = 'none';\
+        \}\
+\
+        // Event listeners\
+        startButton.addEventListener('click', startGame);\
+        restartButton.addEventListener('click', resetGame);\
+\
+        // Initial setup\
+        canvas.style.display = 'none';\
+    </script>\
+</body>\
+</html>\
+}
